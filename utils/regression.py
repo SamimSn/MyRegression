@@ -1,7 +1,10 @@
 import json
+import math
+import colorama as color
 import pandas as pd
 import numpy as np
- 
+import matplotlib.pyplot as plt
+
 
 class Regression:
 
@@ -9,7 +12,7 @@ class Regression:
         self,
         X: np.ndarray,
         Y: np.ndarray,
-        alpha: float = 1e-4,
+        alpha: float = 1e-2,
         iterations: int = 10_000,
     ):
         self.X_data: np.ndarray = self.__normalize_train(X)
@@ -23,6 +26,7 @@ class Regression:
 
         self.W_out: np.ndarray = None
         self.b_out: float = None
+        self.history: dict = {}
 
     def __normalize_train(self, arr: np.ndarray):
         """Normalize input data."""
@@ -77,13 +81,27 @@ class Regression:
         """Compute the gradient descent for a linear regression model."""
         w_copy: np.ndarray = W
         b_copy: float = b
+        previous_cost = None
         for i in range(self.iterations + 1):
             dw, db = self.__compute_gradient(self.X_data, self.Y_data, W, b)
             w_copy -= self.alpha * dw
             b_copy -= self.alpha * db
-            if i % 500 == 0:
-                cost = self.__compute_cost(self.X_data, self.Y_data, w_copy, b_copy)
-                print(f"\033[96mEpoch > {i:5d}\033[0m | \033[93mCost: {cost:.6f}\033[0m")
+            cost = self.__compute_cost(self.X_data, self.Y_data, w_copy, b_copy)
+            if previous_cost is not None and cost > previous_cost:
+                print(
+                    f"{color.Fore.CYAN}Epoch > {i:5d}{color.Fore.RESET} | {color.Fore.YELLOW}Cost: {cost:.6f}{color.Fore.RESET}"
+                )
+                print(f"{color.Fore.GREEN}Gradient Descent stopped due to increasing cost{color.Fore.RESET}")
+                break
+            previous_cost = cost
+            if i % (self.iterations / 10) == 0:
+                print(
+                    f"{color.Fore.CYAN}Epoch > {i:5d}{color.Fore.RESET} | {color.Fore.YELLOW}Cost: {cost:.6f}{color.Fore.RESET}"
+                )
+
+            if i % 10 == 0:
+                self.history[i] = cost
+
         return w_copy, b_copy
 
     def train(self):
@@ -102,12 +120,40 @@ class Regression:
                 indent=4,
             )
 
-    def predict(self, X_new: np.ndarray):
+    def predict(self, X_new: np.ndarray, denormalize: bool = True):
         if self.W_out is None or self.b_out is None:
             raise ValueError(f"Call .train() on your {self.__class__.__name__} instance first.")
         X_new_normalized = self.__normalize_predict(X_new)
         prediction_normalized = self.__function(self.W_out, X_new_normalized, self.b_out)
-        return self.__de_normalize(prediction_normalized)
+        if denormalize:
+            return self.__de_normalize(prediction_normalized)
+        else:
+            return prediction_normalized
+
+    def plot_cost(self):
+        """plots cost function"""
+        _, axs = plt.subplots(1, 1, figsize=(4, 4))
+        axs.set_xlabel("Iteration")
+        axs.set_ylabel("Cost")
+        axs.plot(list(self.history.keys()), list(self.history.values()), color="blue")
+        plt.tight_layout()
+        plt.show()
+
+    def train_accuracy(self):
+        """calculates model's accuracy on normalized training data"""
+        err = 0
+        m = self.X_data.shape[0]
+        for i in range(m):
+            model_out = self.predict(self.X_data[i], False)
+            actual_out = self.Y_data[i]
+            if i % (m // 10) == 0:
+                print(
+                    f"{color.Fore.CYAN}{i}.Model Output > {model_out}{color.Fore.RESET} | {color.Fore.YELLOW}Actual Output: {actual_out}{color.Fore.RESET}"
+                )
+            err += np.abs(model_out - actual_out)
+        print(
+            f"{color.Fore.GREEN} >>> Accuracy on train data is {round(float((1 - (err / m)) * 100), 2)} %{color.Fore.RESET}"
+        )
 
 
 def load_model(path) -> Regression:
@@ -124,3 +170,35 @@ def load_model(path) -> Regression:
     model.Y_data_max = y_max
 
     return model
+
+
+def plot_data(data, x_columns, y_column):
+    x_data = [np.array(data[col]) for col in x_columns]
+    y_data = np.array(data[y_column])
+
+    colours = ["blue", "green", "red", "purple", "orange", "cyan", "magenta", "yellow", "black", "brown"]
+
+    n_plots = len(x_columns)
+    n_cols = 2
+    n_rows = math.ceil(n_plots / n_cols)
+
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(8, 4 * n_rows))
+
+    axs = axs.flatten()
+
+    for i, ax in enumerate(axs[:n_plots]):
+        ax.set_xlabel(x_columns[i])
+        ax.set_ylabel(f"{y_column} (g/km)")
+        ax.plot(x_data[i], y_data, "o", color=colours[i % len(colours)])
+
+    for i in range(n_plots, len(axs)):
+        axs[i].axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+
+def prepare_data(data, x_columns, y_column):
+    x_train = np.array([[data[col][i] for col in x_columns] for i in range(data.shape[0])])
+    y_train = np.array(data[y_column])
+    return x_train, y_train

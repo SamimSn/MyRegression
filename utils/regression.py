@@ -172,7 +172,7 @@ def load_model(path) -> Regression:
     return model
 
 
-def plot_data(data, x_columns, y_column):
+def plot_data(data: pd.DataFrame, x_columns: list[str], y_column: str):
     x_data = [np.array(data[col]) for col in x_columns]
     y_data = np.array(data[y_column])
 
@@ -198,7 +198,7 @@ def plot_data(data, x_columns, y_column):
     plt.show()
 
 
-def prepare_data(data, x_columns, y_column):
+def prepare_data(data: pd.DataFrame, x_columns: list[str], y_column: str):
     x_train = np.array([[data[col][i] for col in x_columns] for i in range(data.shape[0])])
     y_train = np.array(data[y_column])
     return x_train, y_train

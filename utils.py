@@ -51,16 +51,10 @@ class Supervised:
 
     def _compute_gradient(self, X: np.ndarray, Y: np.ndarray, W: np.ndarray, b: float):
         """Compute the gradient of the cost function."""
-        m, n = X.shape
-        dw = np.zeros(n)
-        db = 0
-        for i in range(m):
-            loss = self._function(W, X[i], b) - Y[i]
-            for j in range(n):
-                dw[j] += loss * X[i, j]
-            db += loss
-        dw /= m
-        db /= m
+        m = X.shape[0]
+        loss = self._function(W, X, b) - Y
+        dw = np.dot(loss, X) / m
+        db = np.sum(loss) / m
         return dw, db
 
     def _gradient_descent(self, W: np.ndarray, b: float):
@@ -83,7 +77,7 @@ class Supervised:
             if i % (self.iterations // 10) == 0:
                 print(
                     f"{color.Fore.CYAN}Epoch > {i:5d}{color.Fore.RESET} | {color.Fore.YELLOW}Cost: {cost:.6f}{color.Fore.RESET}"
-                )            
+                )
             self.history[i] = cost
         return w_copy, b_copy
 
@@ -135,40 +129,30 @@ class Supervised:
 class Regression(Supervised):
 
     def _function(self, W: np.ndarray, X: np.ndarray, b: float):
-        return np.dot(W, X) + b
+        return np.dot(X, W) + b
 
     def _compute_cost(self, X: np.ndarray, Y: np.ndarray, W: np.ndarray, b: float):
         """Compute the cost function for a linear regression model."""
-        cost = 0
-        m = X.shape[0]
-        for i in range(m):
-            cost += (self._function(W, X[i], b) - Y[i]) ** 2
-        return cost / (2 * m)
+        return np.sum((self._function(W, X, b) - Y) ** 2) / (2 * X.shape[0])
 
 
 class Classification(Supervised):
 
     def _function(self, W: np.ndarray, X: np.ndarray, b: float):
-        return 1 / (1 + np.exp(-(np.dot(W, X) + b)))
+        return 1 / (1 + np.exp(-(np.dot(X, W) + b)))
 
     def _compute_cost(self, X: np.ndarray, Y: np.ndarray, W: np.ndarray, b: float):
         """Compute the cost function for a logistic regression model."""
-        cost = 0
-        m = X.shape[0]
-        for i in range(m):
-            f = self._function(W, X[i], b)
-            y = Y[i]
-            cost += y * np.log(f) + (1 - y) * np.log(1 - f)
-        return -cost / m
-    
-    def predict(self, X_new, denormalize = True):
-        res = super().predict(X_new, denormalize)
-        return 1 if res >= 0.5 else 0
+        f = self._function(W, X, b)
+        return np.sum(-(Y * np.log(f) + (1 - Y) * np.log(1 - f))) / X.shape[0]
+
+    def predict(self, X_new, denormalize=True):
+        return 1 if super().predict(X_new, denormalize) >= 0.5 else 0
 
 
 def load_model(path: str) -> Supervised:
     file = pd.read_json(path)
-    model_str = file["model"]
+    model_str = np.array(file["model"])[0]
     w = np.array(file["w"])
     b = np.array(file["b"])[0]
     x_max = np.array(file["x_max"])

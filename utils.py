@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 
 
 class Supervised:
-    def __init__(self, X: np.ndarray, Y: np.ndarray, alpha: float = 1e-2, iterations: int = 10_000):
+    def __init__(self, X: np.ndarray, Y: np.ndarray, lr: float = 1e-2, iterations: int = 10_000):
         self.X_data: np.ndarray = self._normalize_train(X)
         self.Y_data: np.ndarray = self._normalize_train(Y)
         self.X_data_max: np.ndarray = X.max(axis=0)
         self.Y_data_max: float = float(Y.max())
-        self.alpha: float = alpha
+        self.lr: float = lr
         self.iterations: int = iterations
         self.W_out: np.ndarray = None
         self.b_out: float = None
@@ -70,8 +70,8 @@ class Supervised:
         previous_cost = None
         for i in range(self.iterations + 1):
             dw, db = self._compute_gradient(self.X_data, self.Y_data, W, b)
-            w_copy -= self.alpha * dw
-            b_copy -= self.alpha * db
+            w_copy -= self.lr * dw
+            b_copy -= self.lr * db
             cost = self._compute_cost(self.X_data, self.Y_data, w_copy, b_copy)
             if previous_cost is not None and cost > previous_cost:
                 print(
@@ -160,6 +160,10 @@ class Classification(Supervised):
             y = Y[i]
             cost += y * np.log(f) + (1 - y) * np.log(1 - f)
         return -cost / m
+    
+    def predict(self, X_new, denormalize = True):
+        res = super().predict(X_new, denormalize)
+        return 1 if res >= 0.5 else 0
 
 
 def load_model(path: str) -> Supervised:
